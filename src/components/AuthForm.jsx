@@ -1,9 +1,16 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import TextInput from './TextInput.jsx';
 import PasswordInput from './PasswordInput.jsx';
 import PrimaryButton from './PrimaryButton.jsx';
+import PasswordStrengthIndicator, { getPasswordStrength } from './PasswordStrengthIndicator.jsx';
 
 const OTP_LENGTH = 6;
+const OTP_EXPIRY_TIME = 180;
+const RESEND_COOLDOWN = 30;
+const MAX_RESEND_ATTEMPTS = 5;
+const MAX_OTP_ATTEMPTS = 5;
+const COOLDOWN_TIMES = [300, 1800];
+const VALID_OTP = '123456';
 
 const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) => {
   const [currentStep, setCurrentStep] = useState(initialStep);
@@ -16,9 +23,20 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
   const [loginPassword, setLoginPassword] = useState('');
   const [otp, setOtp] = useState(Array.from({ length: OTP_LENGTH }, () => ''));
   const [toast, setToast] = useState({ message: '', visible: false });
+  
+  const [otpExpiry, setOtpExpiry] = useState(OTP_EXPIRY_TIME);
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const [resendAttempts, setResendAttempts] = useState(0);
+  const [otpAttempts, setOtpAttempts] = useState(0);
+  const [rateLimitCooldown, setRateLimitCooldown] = useState(0);
+  const [cooldownLevel, setCooldownLevel] = useState(0);
+  
   const toastTimeout = useRef(null);
   const loginTimeout = useRef(null);
   const otpRefs = useRef([]);
+  const otpExpiryInterval = useRef(null);
+  const resendCooldownInterval = useRef(null);
+  const rateLimitInterval = useRef(null);
 
   const heroDefault = 'Get started';
   const heroSubDefault = useMemo(
@@ -50,14 +68,60 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
 
   useEffect(() => {
     return () => {
-      if (toastTimeout.current) {
-        clearTimeout(toastTimeout.current);
-      }
-      if (loginTimeout.current) {
-        clearTimeout(loginTimeout.current);
-      }
+      if (toastTimeout.current) clearTimeout(toastTimeout.current);
+      if (loginTimeout.current) clearTimeout(loginTimeout.current);
+      if (otpExpiryInterval.current) clearInterval(otpExpiryInterval.current);
+      if (resendCooldownInterval.current) clearInterval(resendCooldownInterval.current);
+      if (rateLimitInterval.current) clearInterval(rateLimitInterval.current);
     };
   }, []);
+
+  const startOtpTimer = useCallback(() => {
+    setOtpExpiry(OTP_EXPIRY_TIME);
+    setResendCooldown(RESEND_COOLDOWN);
+    
+    if (otpExpiryInterval.current) clearInterval(otpExpiryInterval.current);
+    if (resendCooldownInterval.current) clearInterval(resendCooldownInterval.current);
+    
+    otpExpiryInterval.current = setInterval(() => {
+      setOtpExpiry((prev) => {
+        if (prev <= 1) {
+          clearInterval(otpExpiryInterval.current);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    
+    resendCooldownInterval.current = setInterval(() => {
+      setResendCooldown((prev) => {
+        if (prev <= 1) {
+          clearInterval(resendCooldownInterval.current);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  }, []);
+
+  const startRateLimitCooldown = useCallback(() => {
+    const cooldownTime = COOLDOWN_TIMES[Math.min(cooldownLevel, COOLDOWN_TIMES.length - 1)];
+    setRateLimitCooldown(cooldownTime);
+    setCooldownLevel((prev) => prev + 1);
+    
+    if (rateLimitInterval.current) clearInterval(rateLimitInterval.current);
+    
+    rateLimitInterval.current = setInterval(() => {
+      setRateLimitCooldown((prev) => {
+        if (prev <= 1) {
+          clearInterval(rateLimitInterval.current);
+          setResendAttempts(0);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  }, [cooldownLevel]);
 
   const handleOtpChange = (value, index) => {
     const sanitized = value.replace(/\D/g, '').slice(-1);
@@ -75,23 +139,58 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
     }
   };
 
-  const checkOtpValue = (values) => {
+  const isOtpBlocked = otpAttempts >= MAX_OTP_ATTEMPTS || otpExpiry <= 0 || rateLimitCooldown > 0;
+
+  const checkOtpValue = useCallback((values) => {
     const code = values.join('');
     if (code.length !== OTP_LENGTH) return;
-    if (code !== '000000') {
-      showToast('Incorrect OTP');
+    
+    if (otpExpiry <= 0) {
+      showToast('Code has expired. Please request a new one.');
+      setOtp(Array.from({ length: OTP_LENGTH }, () => ''));
+      return;
+    }
+    
+    if (otpAttempts >= MAX_OTP_ATTEMPTS) {
+      showToast('Maximum attempts reached. Please request a new code.');
+      setOtp(Array.from({ length: OTP_LENGTH }, () => ''));
+      return;
+    }
+    
+    if (code !== VALID_OTP) {
+      const newAttempts = otpAttempts + 1;
+      setOtpAttempts(newAttempts);
+      
+      if (newAttempts >= MAX_OTP_ATTEMPTS) {
+        showToast('Maximum attempts reached. Please request a new code.');
+        setOtp(Array.from({ length: OTP_LENGTH }, () => ''));
+        return;
+      }
+      
+      showToast(`Incorrect code. ${MAX_OTP_ATTEMPTS - newAttempts} attempts remaining.`);
       setOtp(Array.from({ length: OTP_LENGTH }, () => ''));
       otpRefs.current[0]?.focus();
       return;
     }
-    if (onSignupComplete) {
-      onSignupComplete();
-    }
-  };
+    
+    if (otpExpiryInterval.current) clearInterval(otpExpiryInterval.current);
+    if (resendCooldownInterval.current) clearInterval(resendCooldownInterval.current);
+    
+    showToast('Email verified successfully!');
+    
+    setTimeout(() => {
+      if (onSignupComplete) {
+        onSignupComplete();
+      }
+    }, 1000);
+  }, [otpAttempts, otpExpiry, onSignupComplete]);
 
   useEffect(() => {
-    checkOtpValue(otp);
-  }, [otp]);
+    const code = otp.join('');
+    if (code.length === OTP_LENGTH) {
+      checkOtpValue(otp);
+    }
+  }, [otp, checkOtpValue]);
 
   const handleOtpPaste = (event) => {
     const text = event.clipboardData?.getData('text')?.replace(/\D/g, '') ?? '';
@@ -99,6 +198,38 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
     const next = Array.from({ length: OTP_LENGTH }, (_, index) => text[index] ?? '');
     setOtp(next);
     otpRefs.current[Math.min(text.length, OTP_LENGTH) - 1]?.focus();
+  };
+
+  const handleResendOtp = () => {
+    if (resendCooldown > 0 || rateLimitCooldown > 0) return;
+    
+    const newResendAttempts = resendAttempts + 1;
+    setResendAttempts(newResendAttempts);
+    
+    if (newResendAttempts >= MAX_RESEND_ATTEMPTS) {
+      startRateLimitCooldown();
+      showToast('Too many resend attempts. Please wait before trying again.');
+      return;
+    }
+    
+    setOtpAttempts(0);
+    setOtp(Array.from({ length: OTP_LENGTH }, () => ''));
+    startOtpTimer();
+    showToast('New verification code sent to your email.');
+    otpRefs.current[0]?.focus();
+  };
+
+  const handleEditEmail = () => {
+    if (otpExpiryInterval.current) clearInterval(otpExpiryInterval.current);
+    if (resendCooldownInterval.current) clearInterval(resendCooldownInterval.current);
+    if (rateLimitInterval.current) clearInterval(rateLimitInterval.current);
+    setOtpAttempts(0);
+    setResendAttempts(0);
+    setRateLimitCooldown(0);
+    setCooldownLevel(0);
+    setOtpExpiry(OTP_EXPIRY_TIME);
+    setOtp(Array.from({ length: OTP_LENGTH }, () => ''));
+    showStep('email');
   };
 
   const isLoginStep = currentStep.startsWith('login');
@@ -164,11 +295,16 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
   };
 
   const handlePasswordContinue = () => {
-    if (password.length >= 6) {
-      showStep('confirm');
+    const strength = getPasswordStrength(password);
+    if (password.length < 6) {
+      showToast('Use at least 6 characters for your password.');
       return;
     }
-    showToast('Use at least 6 characters for your password.');
+    if (strength.level < 2) {
+      showToast('Please create a stronger password.');
+      return;
+    }
+    showStep('confirm');
   };
 
   const handleConfirmContinue = () => {
@@ -180,8 +316,13 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
       showToast("Passwords don't match.");
       return;
     }
+    
+    startOtpTimer();
     showStep('otp');
-    otpRefs.current[0]?.focus();
+    showToast('Verification code sent to your email.');
+    setTimeout(() => {
+      otpRefs.current[0]?.focus();
+    }, 100);
   };
 
   const formSubmit = (event) => {
@@ -190,6 +331,19 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
       handleConfirmContinue();
     }
   };
+
+  const formatTime = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const passwordRequirements = [
+    { label: 'At least 6 characters', met: password.length >= 6 },
+    { label: 'Contains uppercase letter', met: /[A-Z]/.test(password) },
+    { label: 'Contains lowercase letter', met: /[a-z]/.test(password) },
+    { label: 'Contains a number', met: /[0-9]/.test(password) },
+  ];
 
   return (
     <>
@@ -343,11 +497,11 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
               </button>
             </div>
 
-            <div id="step-password" className={`step ${currentStep === 'password' ? 'active' : ''} space-y-8`}>
+            <div id="step-password" className={`step ${currentStep === 'password' ? 'active' : ''} space-y-6`}>
               <div className={`glass glass-input shadow-xl animate-on-load delay-4 ${password ? 'has-value' : ''}`}>
                 <PasswordInput
                   id="password"
-                  placeholder="Password"
+                  placeholder="Create password"
                   required
                   minLength={6}
                   value={password}
@@ -359,6 +513,24 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
                   </svg>
                 </PrimaryButton>
               </div>
+              
+              <PasswordStrengthIndicator password={password} />
+              
+              <div className="password-requirements animate-on-load delay-5">
+                {passwordRequirements.map((req, index) => (
+                  <div key={index} className={`requirement-item ${req.met ? 'met' : ''}`}>
+                    <span className="requirement-icon">
+                      {req.met ? (
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                          <path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                      ) : null}
+                    </span>
+                    <span>{req.label}</span>
+                  </div>
+                ))}
+              </div>
+              
               <button
                 type="button"
                 id="back-to-last-name"
@@ -384,6 +556,18 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
                   </svg>
                 </PrimaryButton>
               </div>
+              
+              {confirmPassword && password !== confirmPassword && (
+                <p className="text-sm text-center" style={{ color: '#FF3B30' }}>
+                  Passwords don't match
+                </p>
+              )}
+              {confirmPassword && password === confirmPassword && (
+                <p className="text-sm text-center" style={{ color: '#34C759' }}>
+                  Passwords match
+                </p>
+              )}
+              
               <button
                 type="button"
                 id="back-to-password"
@@ -395,53 +579,109 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
             </div>
 
             <div id="step-otp" className={`step ${currentStep === 'otp' ? 'active' : ''} space-y-8`}>
-              <div className="text-center space-y-3 animate-on-load delay-4">
-                <h3 className="text-2xl font-semibold tracking-tight">Confirm your email</h3>
-                <p className="text-sm text-muted-foreground">
-                  Enter the 6-digit code sent to
-                  <span id="otp-email" className="font-semibold text-foreground">
-                    {email || 'your email'}
-                  </span>
-                </p>
-                <button
-                  type="button"
-                  id="edit-email"
-                  className="text-sm text-foreground underline underline-offset-4 transition"
-                  onClick={() => showStep('email')}
-                >
-                  Edit Email
-                </button>
-              </div>
-              <div className="flex justify-center gap-3" onPaste={handleOtpPaste}>
-                {otp.map((digit, index) => (
-                  <TextInput
-                    key={`otp-${index}`}
-                    id={`otp-${index}`}
-                    type="text"
-                    inputMode="numeric"
-                    pattern="[0-9]*"
-                    maxLength={1}
-                    autoComplete={index === 0 ? 'one-time-code' : undefined}
-                    baseClassName="otp-input"
-                    value={digit}
-                    onChange={(event) => handleOtpChange(event.target.value, index)}
-                    onKeyDown={(event) => handleOtpKeyDown(event, index)}
-                    ref={(el) => {
-                      otpRefs.current[index] = el;
-                    }}
-                  />
-                ))}
-              </div>
+              {rateLimitCooldown > 0 ? (
+                <div className="otp-cooldown animate-on-load delay-4">
+                  <h4>Too many attempts</h4>
+                  <p>
+                    Please wait <strong>{formatTime(rateLimitCooldown)}</strong> before trying again.
+                  </p>
+                  <p style={{ marginTop: '12px' }}>
+                    Or <a href="#">contact support</a> for help.
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <div className="text-center space-y-3 animate-on-load delay-4">
+                    <h3 className="text-2xl font-semibold tracking-tight">Verify your email</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Enter the 6-digit code sent to{' '}
+                      <span id="otp-email" className="font-semibold text-foreground">
+                        {email || 'your email'}
+                      </span>
+                    </p>
+                    <button
+                      type="button"
+                      id="edit-email"
+                      className="text-sm text-foreground underline underline-offset-4 transition"
+                      onClick={handleEditEmail}
+                    >
+                      Edit Email
+                    </button>
+                  </div>
+                  
+                  <div className={`flex justify-center gap-3 ${isOtpBlocked ? 'otp-blocked' : ''}`} onPaste={isOtpBlocked ? undefined : handleOtpPaste}>
+                    {otp.map((digit, index) => (
+                      <TextInput
+                        key={`otp-${index}`}
+                        id={`otp-${index}`}
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        maxLength={1}
+                        autoComplete={index === 0 ? 'one-time-code' : undefined}
+                        baseClassName={`otp-input ${isOtpBlocked ? 'otp-input-disabled' : ''}`}
+                        value={digit}
+                        onChange={(event) => !isOtpBlocked && handleOtpChange(event.target.value, index)}
+                        onKeyDown={(event) => !isOtpBlocked && handleOtpKeyDown(event, index)}
+                        disabled={isOtpBlocked}
+                        ref={(el) => {
+                          otpRefs.current[index] = el;
+                        }}
+                      />
+                    ))}
+                  </div>
+                  
+                  <div className="otp-timer">
+                    {otpExpiry > 0 ? (
+                      <p>
+                        Code expires in <span className="otp-timer-value">{formatTime(otpExpiry)}</span>
+                      </p>
+                    ) : (
+                      <p style={{ color: '#FF3B30' }}>Code expired. Please request a new one.</p>
+                    )}
+                  </div>
+                  
+                  {otpAttempts > 0 && otpAttempts < MAX_OTP_ATTEMPTS && (
+                    <p className="otp-attempts">
+                      {MAX_OTP_ATTEMPTS - otpAttempts} attempts remaining
+                    </p>
+                  )}
+                  
+                  {otpAttempts >= MAX_OTP_ATTEMPTS && (
+                    <p className="otp-error">
+                      Maximum attempts reached. Request a new code.
+                    </p>
+                  )}
+                  
+                  <div className="text-center">
+                    <button
+                      type="button"
+                      className="otp-resend-btn"
+                      onClick={handleResendOtp}
+                      disabled={resendCooldown > 0}
+                    >
+                      {resendCooldown > 0 
+                        ? `Resend in ${resendCooldown}s` 
+                        : 'Resend Code'}
+                    </button>
+                    {resendAttempts > 0 && resendAttempts < MAX_RESEND_ATTEMPTS && (
+                      <p className="text-xs text-muted-foreground mt-2">
+                        {MAX_RESEND_ATTEMPTS - resendAttempts} resend attempts remaining
+                      </p>
+                    )}
+                  </div>
+                </>
+              )}
             </div>
           </form>
 
           <div className="text-center text-xs text-muted-foreground space-y-2 pt-6 animate-on-load delay-5">
             <p>
-              By continuing, you agree to our
+              By continuing, you agree to our{' '}
               <a href="#" className="underline hover:text-foreground transition">
                 Terms of Service
               </a>{' '}
-              and
+              and{' '}
               <a href="#" className="underline hover:text-foreground transition">
                 Privacy Policy
               </a>
