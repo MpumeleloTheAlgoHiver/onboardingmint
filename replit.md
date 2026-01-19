@@ -25,14 +25,20 @@ A React authentication application using Vite as the build tool with Tailwind CS
 - `index.html` - HTML entry point
 
 ## Features
-- **Password Validation**: Real-time strength indicator (Weak/Medium/Strong) with requirement checklist
+- **Password Validation**: Real-time strength indicator requiring ALL criteria to be "Strong":
+  - At least 8 characters
+  - At least 1 uppercase letter (A-Z)
+  - At least 1 lowercase letter (a-z)
+  - At least 1 number (0-9)
+  - At least 1 special character
+  - Only "Strong" passwords can proceed
 - **OTP Verification Flow**:
   - 180 second code expiry timer
   - 30 second resend cooldown
   - Rate limiting (max 5 resend attempts)
   - Max 5 incorrect OTP attempts before lockout
   - 5min/30min progressive cooldown after rate limit
-  - Edit email functionality to change email and reset flow
+  - Edit email functionality returns directly to OTP page (seamless flow)
 - **iOS-Style UI**: Glassmorphism design with smooth animations
 
 ## Development

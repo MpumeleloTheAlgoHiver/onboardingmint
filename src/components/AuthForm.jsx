@@ -30,6 +30,7 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
   const [otpAttempts, setOtpAttempts] = useState(0);
   const [rateLimitCooldown, setRateLimitCooldown] = useState(0);
   const [cooldownLevel, setCooldownLevel] = useState(0);
+  const [isEditingEmail, setIsEditingEmail] = useState(false);
   
   const toastTimeout = useRef(null);
   const loginTimeout = useRef(null);
@@ -229,6 +230,7 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
     setCooldownLevel(0);
     setOtpExpiry(OTP_EXPIRY_TIME);
     setOtp(Array.from({ length: OTP_LENGTH }, () => ''));
+    setIsEditingEmail(true);
     showStep('email');
   };
 
@@ -244,6 +246,16 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
 
   const handleEmailContinue = () => {
     if (email && email.includes('@') && email.includes('.')) {
+      if (isEditingEmail) {
+        setIsEditingEmail(false);
+        showStep('otp');
+        startOtpTimer();
+        showToast('New verification code sent to your email.');
+        setTimeout(() => {
+          otpRefs.current[0]?.focus();
+        }, 100);
+        return;
+      }
       showStep('firstName');
       return;
     }
@@ -296,20 +308,16 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
 
   const handlePasswordContinue = () => {
     const strength = getPasswordStrength(password);
-    if (password.length < 6) {
-      showToast('Use at least 6 characters for your password.');
-      return;
-    }
-    if (strength.level < 2) {
-      showToast('Please create a stronger password.');
+    if (strength.level < 3) {
+      showToast('Your password must meet all requirements to continue.');
       return;
     }
     showStep('confirm');
   };
 
   const handleConfirmContinue = () => {
-    if (password.length < 6) {
-      showToast('Use at least 6 characters for your password.');
+    if (password.length < 8) {
+      showToast('Use at least 8 characters for your password.');
       return;
     }
     if (password !== confirmPassword) {
@@ -338,12 +346,6 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const passwordRequirements = [
-    { label: 'At least 6 characters', met: password.length >= 6 },
-    { label: 'Contains uppercase letter', met: /[A-Z]/.test(password) },
-    { label: 'Contains lowercase letter', met: /[a-z]/.test(password) },
-    { label: 'Contains a number', met: /[0-9]/.test(password) },
-  ];
 
   return (
     <>
@@ -516,20 +518,6 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
               
               <PasswordStrengthIndicator password={password} />
               
-              <div className="password-requirements animate-on-load delay-5">
-                {passwordRequirements.map((req, index) => (
-                  <div key={index} className={`requirement-item ${req.met ? 'met' : ''}`}>
-                    <span className="requirement-icon">
-                      {req.met ? (
-                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-                          <path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round"/>
-                        </svg>
-                      ) : null}
-                    </span>
-                    <span>{req.label}</span>
-                  </div>
-                ))}
-              </div>
               
               <button
                 type="button"
