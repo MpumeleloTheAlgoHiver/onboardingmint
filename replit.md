@@ -1,16 +1,39 @@
 # Mint Auth (React + Vite)
 
 ## Overview
-A React application using Vite as the build tool with Tailwind CSS for styling and Framer Motion for animations.
+A React authentication application using Vite as the build tool with Tailwind CSS for styling and Framer Motion for animations. Features a complete signup flow with password validation and OTP email verification.
 
 ## Project Structure
 - `src/` - Main source code
-  - `App.jsx` - Main application component
+  - `App.jsx` - Main application component with page routing
   - `components/` - Reusable UI components
+    - `AuthForm.jsx` - Main authentication form with password/OTP flow
+    - `PasswordStrengthIndicator.jsx` - Password strength validation component
+    - `TextInput.jsx` - Base text input component
+    - `PasswordInput.jsx` - Password input wrapper
+    - `PrimaryButton.jsx` - Button component
+    - `Preloader.jsx` - Loading animation component
+    - `AuthLayout.jsx` - Auth page layout
   - `pages/` - Page components
+    - `AuthPage.jsx` - Authentication page
+    - `OnboardingPage.jsx` - Welcome/onboarding page
+    - `HomePage.jsx` - Home page after login
   - `styles/` - CSS styles
+    - `auth.css` - iOS-style auth form styling
+    - `tailwind.css` - Tailwind configuration
 - `public/` - Static assets
 - `index.html` - HTML entry point
+
+## Features
+- **Password Validation**: Real-time strength indicator (Weak/Medium/Strong) with requirement checklist
+- **OTP Verification Flow**:
+  - 180 second code expiry timer
+  - 30 second resend cooldown
+  - Rate limiting (max 5 resend attempts)
+  - Max 5 incorrect OTP attempts before lockout
+  - 5min/30min progressive cooldown after rate limit
+  - Edit email functionality to change email and reset flow
+- **iOS-Style UI**: Glassmorphism design with smooth animations
 
 ## Development
 The development server runs on port 5000 using Vite.
@@ -19,6 +42,9 @@ The development server runs on port 5000 using Vite.
 - `npm run dev` - Start development server
 - `npm run build` - Build for production
 - `npm run preview` - Preview production build
+
+### Test OTP Code
+For development testing, the valid OTP code is: `123456`
 
 ## Deployment
 This project is configured for static deployment. The build output goes to the `dist` directory.
