@@ -144,6 +144,13 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
     }, 1000);
   }, []);
 
+  useEffect(() => {
+    if (currentStep === 'otp' && otpExpiry === 0) {
+      showToast('Code has expired. Please request a new one.');
+      setOtp(Array.from({ length: OTP_LENGTH }, () => ''));
+    }
+  }, [otpExpiry, currentStep]);
+
   const startRateLimitCooldown = useCallback(() => {
     const cooldownTime = COOLDOWN_TIMES[Math.min(cooldownLevel, COOLDOWN_TIMES.length - 1)];
     setRateLimitCooldown(cooldownTime);
@@ -1076,7 +1083,13 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
                     </p>
                   )}
                   
-                  {otpAttempts > 0 && otpAttempts < MAX_OTP_ATTEMPTS && !isLoading && (
+                  {otpExpiry <= 0 && !isLoading && (
+                    <p className="otp-error">
+                      Code expired. Please request a new one.
+                    </p>
+                  )}
+                  
+                  {otpAttempts > 0 && otpAttempts < MAX_OTP_ATTEMPTS && !isLoading && otpExpiry > 0 && (
                     <p className="otp-attempts">
                       {MAX_OTP_ATTEMPTS - otpAttempts} attempts remaining
                     </p>
