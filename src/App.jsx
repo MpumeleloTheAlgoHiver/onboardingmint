@@ -5,6 +5,7 @@ import Preloader from "./components/Preloader.jsx";
 import AuthPage from "./pages/AuthPage.jsx";
 import HomePage from "./pages/HomePage.jsx";
 import OnboardingPage from "./pages/OnboardingPage.jsx";
+import UserOnboardingPage from "./pages/UserOnboardingPage.jsx";
 
 const initialHash = window.location.hash;
 const isRecoveryMode = initialHash.includes('type=recovery');
@@ -114,10 +115,14 @@ const App = () => {
     return <HomePage />;
   }
 
+  if (currentPage === "userOnboarding") {
+    return <UserOnboardingPage onComplete={() => setCurrentPage("home")} />;
+  }
+
   return (
     <AuthPage
       initialStep={authStep}
-      onSignupComplete={() => setCurrentPage("home")}
+      onSignupComplete={() => setCurrentPage("userOnboarding")}
       onLoginComplete={() => setCurrentPage("home")}
     />
   );

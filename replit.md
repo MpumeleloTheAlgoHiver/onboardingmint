@@ -16,7 +16,8 @@ A React authentication application using Vite as the build tool with Tailwind CS
     - `AuthLayout.jsx` - Auth page layout
   - `pages/` - Page components
     - `AuthPage.jsx` - Authentication page
-    - `OnboardingPage.jsx` - Welcome/onboarding page
+    - `OnboardingPage.jsx` - Welcome/landing page (before login)
+    - `UserOnboardingPage.jsx` - Post-signup onboarding page
     - `HomePage.jsx` - Home page after login
   - `styles/` - CSS styles
     - `auth.css` - iOS-style auth form styling
