@@ -9,22 +9,56 @@ import OnboardingPage from "./pages/OnboardingPage.jsx";
 const initialHash = window.location.hash;
 const isRecoveryMode = initialHash.includes('type=recovery');
 
+const getTokensFromHash = (hash) => {
+  if (!hash) return null;
+  const params = new URLSearchParams(hash.substring(1));
+  const accessToken = params.get('access_token');
+  const refreshToken = params.get('refresh_token');
+  if (accessToken) {
+    return { accessToken, refreshToken: refreshToken || accessToken };
+  }
+  return null;
+};
+
+const recoveryTokens = isRecoveryMode ? getTokensFromHash(initialHash) : null;
+
 const App = () => {
   const [showPreloader, setShowPreloader] = useState(true);
   const [currentPage, setCurrentPage] = useState(isRecoveryMode ? "auth" : "welcome");
   const [authStep, setAuthStep] = useState(isRecoveryMode ? "newPassword" : "email");
-  const [isCheckingAuth, setIsCheckingAuth] = useState(!isRecoveryMode);
-  const recoveryHandled = useRef(isRecoveryMode);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  const [sessionReady, setSessionReady] = useState(false);
+  const recoveryHandled = useRef(false);
 
   useEffect(() => {
+    const setupRecoverySession = async () => {
+      if (isRecoveryMode && recoveryTokens && supabase) {
+        try {
+          const { error } = await supabase.auth.setSession({
+            access_token: recoveryTokens.accessToken,
+            refresh_token: recoveryTokens.refreshToken
+          });
+          
+          if (!error) {
+            setSessionReady(true);
+          }
+        } catch (err) {
+          console.error('Error setting recovery session:', err);
+        }
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+      setIsCheckingAuth(false);
+    };
+    
     if (isRecoveryMode) {
-      window.history.replaceState({}, document.title, window.location.pathname);
+      setupRecoverySession();
+    } else {
+      setIsCheckingAuth(false);
     }
   }, []);
 
   useEffect(() => {
     if (!supabase || isRecoveryMode) {
-      setIsCheckingAuth(false);
       return;
     }
     
@@ -39,11 +73,8 @@ const App = () => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'PASSWORD_RECOVERY') {
         handleRecoveryFlow();
-        setIsCheckingAuth(false);
       }
     });
-    
-    setIsCheckingAuth(false);
     
     return () => {
       subscription?.unsubscribe();
