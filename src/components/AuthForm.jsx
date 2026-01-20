@@ -221,6 +221,7 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
       });
       
       if (error) {
+        console.log('OTP verification error:', error.message, error);
         const newAttempts = otpAttempts + 1;
         setOtpAttempts(newAttempts);
         
