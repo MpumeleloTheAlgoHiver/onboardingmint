@@ -550,6 +550,7 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
     setIsLoading(true);
     
     try {
+      console.log('Attempting signup for:', email);
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -561,8 +562,17 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
         },
       });
       
+      console.log('Signup response - data:', data, 'error:', error);
+      
       if (error) {
+        console.error('Signup error:', error);
         showToast(error.message);
+        setIsLoading(false);
+        return;
+      }
+      
+      if (data?.user?.identities?.length === 0) {
+        showToast('An account with this email already exists. Please log in instead.');
         setIsLoading(false);
         return;
       }
@@ -574,6 +584,7 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
         otpRefs.current[0]?.focus();
       }, 100);
     } catch (err) {
+      console.error('Signup exception:', err);
       showToast('An error occurred. Please try again.');
     } finally {
       setIsLoading(false);
