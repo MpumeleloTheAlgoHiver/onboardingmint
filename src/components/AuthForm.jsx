@@ -460,27 +460,43 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
   };
 
   const handleSendResetEmail = async () => {
+    console.log('handleSendResetEmail called');
+    console.log('resetEmail:', resetEmail);
+    console.log('supabase:', supabase ? 'initialized' : 'NULL');
+    
     if (!resetEmail || !resetEmail.includes('@') || !resetEmail.includes('.')) {
       showToast('Enter a valid email address.');
+      return;
+    }
+    
+    if (!supabase) {
+      showToast('Connection error. Please refresh the page.');
       return;
     }
     
     setIsLoading(true);
     
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
+      console.log('Calling resetPasswordForEmail...');
+      const { data, error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
         redirectTo: window.location.origin,
       });
       
+      console.log('Response data:', data);
+      console.log('Response error:', error);
+      
       if (error) {
+        console.log('Error:', error.message);
         showToast(error.message);
         setIsLoading(false);
         return;
       }
       
+      console.log('Success - email should be sent');
       setResetEmailSent(true);
       showToast('Password reset link sent to your email.');
     } catch (err) {
+      console.log('Catch error:', err);
       showToast('An error occurred. Please try again.');
     } finally {
       setIsLoading(false);
@@ -560,18 +576,34 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
   };
 
   const handleConfirmContinue = async () => {
-    if (isLoading) return;
+    console.log('handleConfirmContinue called');
+    console.log('supabase:', supabase ? 'initialized' : 'NULL');
+    console.log('isLoading:', isLoading);
+    
+    if (isLoading) {
+      console.log('Blocked by isLoading');
+      return;
+    }
     
     if (password.length < 8) {
+      console.log('Password too short');
       showToast('Use at least 8 characters for your password.');
       return;
     }
     if (password !== confirmPassword) {
+      console.log('Passwords dont match');
       showToast("Passwords don't match.");
       return;
     }
     
+    if (!supabase) {
+      console.log('Supabase not initialized');
+      showToast('Connection error. Please refresh the page.');
+      return;
+    }
+    
     setIsLoading(true);
+    console.log('Calling supabase.auth.signUp...');
     
     try {
       const { data, error } = await supabase.auth.signUp({
