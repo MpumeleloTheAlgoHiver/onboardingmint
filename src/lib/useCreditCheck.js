@@ -139,7 +139,7 @@ export function useCreditCheck() {
         .from("truid_bank_snapshots")
         .select("avg_monthly_income,avg_monthly_expenses,net_monthly_income")
         .eq("user_id", session.user.id)
-        .order("created_at", { ascending: false })
+        .order("captured_at", { ascending: false })
         .limit(1)
         .maybeSingle();
 
