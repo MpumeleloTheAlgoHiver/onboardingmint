@@ -31,5 +31,26 @@
       "command": "git push origin main",
       "problemMatcher": []
     }
+    ,
+    {
+      "label": "git: add",
+      "type": "shell",
+      "command": "git add -A",
+      "problemMatcher": []
+    }
+    ,
+    {
+      "label": "git: commit",
+      "type": "shell",
+      "command": "cmd /c \"git commit -m \"Allow profile creation with user token and logging\" || echo no changes to commit\"",
+      "problemMatcher": []
+    }
+    ,
+    {
+      "label": "git: commit-and-push",
+      "type": "shell",
+      "command": "git add -A && git commit -m \"Allow profile creation with user token and logging\" || echo 'no changes to commit' && git push origin main",
+      "problemMatcher": []
+    }
   ]
 }
