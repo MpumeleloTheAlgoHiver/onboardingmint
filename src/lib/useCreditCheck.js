@@ -125,7 +125,7 @@ export function useCreditCheck() {
 
       const { data: profileData, error: profileError } = await supabase
         .from("profiles")
-        .select("first_name,last_name,id_number,annual_income_min,employment_type,date_of_birth,gender,address")
+        .select("first_name,last_name,id_number,date_of_birth,gender,address")
         .eq("id", session.user.id)
         .single();
 
@@ -158,11 +158,10 @@ export function useCreditCheck() {
         address: profileData?.address || prev.address,
         annualIncome: snapshotData?.avg_monthly_income
           ? String(snapshotData.avg_monthly_income * 12)
-          : (profileData?.annual_income_min ? String(profileData.annual_income_min) : prev.annualIncome),
+          : prev.annualIncome,
         annualExpenses: snapshotData?.avg_monthly_expenses
           ? String(snapshotData.avg_monthly_expenses * 12)
-          : prev.annualExpenses,
-        contractType: normalizeContractTypeValue(profileData?.employment_type) || prev.contractType
+          : prev.annualExpenses
       }));
 
       setLoadingProfile(false);
