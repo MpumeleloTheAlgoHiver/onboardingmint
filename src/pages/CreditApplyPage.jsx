@@ -13,12 +13,16 @@ import { useCreditCheck } from "../lib/useCreditCheck";
 const ConnectionStage = ({ onComplete, onError }) => {
   const [status, setStatus] = useState("idle"); // idle, connecting, polling, capturing, success, error
   const [message, setMessage] = useState("");
+  const [debugLog, setDebugLog] = useState([]);
   const collectionIdRef = useRef(null);
   const pollingRef = useRef(null);
+
+  const addLog = (msg) => setDebugLog(prev => [...prev, `${new Date().toLocaleTimeString()} - ${msg}`]);
 
   const startSession = async () => {
     setStatus("connecting");
     setMessage("Initializing secure connection...");
+    addLog("Starting session...");
     
     try {
        const { data: { session } } = await supabase.auth.getSession();
@@ -31,6 +35,7 @@ const ConnectionStage = ({ onComplete, onError }) => {
        });
        
        const data = await response.json();
+       addLog(`Initiate response: ${JSON.stringify(data)}`);
        if (!data.success) throw new Error(data.error || "Connection failed");
 
        collectionIdRef.current = data.collectionId;
@@ -51,12 +56,14 @@ const ConnectionStage = ({ onComplete, onError }) => {
        
        setMessage("Complete the process in the popup window...");
        setStatus("polling");
+       addLog(`Polling started for collectionId: ${data.collectionId}`);
        startPolling(data.collectionId);
 
     } catch (err) {
       console.error(err);
       setStatus("error");
       setMessage(err.message);
+      addLog(`Error starting: ${err.message}`);
       onError(err.message);
     }
   };
@@ -69,11 +76,15 @@ const ConnectionStage = ({ onComplete, onError }) => {
            const res = await fetch(`/api/banking/status?collectionId=${collectionId}`);
            const data = await res.json();
            const s = String(data.currentStatus || "").toUpperCase();
+           
+           // Only log status changes or interesting events to avoid spam
+           if (Math.random() > 0.7) addLog(`Poll Status: ${s}`);
 
            if (s.includes("SUCCESS") || s.includes("COMPLETED")) {
               clearInterval(pollingRef.current);
               setStatus("capturing");
               setMessage("Analyzing banking data...");
+              addLog("Status Success. Starting Capture...");
               
               // Capture Data
               try {
@@ -86,29 +97,49 @@ const ConnectionStage = ({ onComplete, onError }) => {
                       },
                       body: JSON.stringify({ collectionId })
                   });
-                  const captureData = await captureRes.json();
                   
+                  const captureText = await captureRes.text();
+                  addLog(`Capture Raw Response: ${captureText.substring(0, 200)}...`);
+                  
+                  let captureData;
+                  try {
+                      captureData = JSON.parse(captureText);
+                  } catch(e) {
+                      addLog("Failed to parse capture response JSON");
+                      throw new Error("Invalid JSON from capture endpoint");
+                  }
+                  
+                  if (!captureRes.ok || !captureData.success) {
+                      addLog(`Capture Failed: ${captureData.error || captureRes.statusText}`);
+                      throw new Error(captureData.error || "Capture failed");
+                  }
+
                   setStatus("success");
                   setMessage("Banking data verified successfully.");
+                  addLog("Capture Success! Saved Snapshot:");
+                  addLog(JSON.stringify(captureData.snapshot, null, 2));
                   
                   // Brief delay to show success
                   setTimeout(() => {
                       onComplete(collectionId, captureData.success ? captureData.snapshot : null);
-                  }, 1000);
+                  }, 3000); // Increased delay so user can see debug logs
 
               } catch (err) {
                   console.error("Capture error", err);
                   setStatus("error");
                   setMessage("Failed to retrieve banking data.");
+                  addLog(`Capture Error Exception: ${err.message}`);
               }
 
            } else if (s.includes("FAILED") || s.includes("CANCELLED")) {
               clearInterval(pollingRef.current);
               setStatus("error");
               setMessage("Bank connection was cancelled or failed.");
+              addLog(`Polling Failed Status: ${s}`);
            }
         } catch (e) {
            console.error("Polling error", e);
+           addLog(`Polling Exception: ${e.message}`);
         }
      }, 3000);
   };
@@ -157,6 +188,16 @@ const ConnectionStage = ({ onComplete, onError }) => {
            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-emerald-600">
              <CheckCircle2 size={16} /> Verified
            </div>
+        )}
+
+        {/* Debug Log View */}
+        {debugLog.length > 0 && (
+          <div className="w-full mt-6 bg-slate-900 rounded-lg p-4 font-mono text-[10px] text-slate-300 overflow-x-auto max-h-48 overflow-y-auto border border-slate-700 shadow-inner">
+             <p className="font-bold text-slate-500 mb-2 uppercase sticky top-0 bg-slate-900 pb-2 border-b border-slate-700">Debug Console</p>
+             {debugLog.map((log, i) => (
+               <div key={i} className="mb-1 whitespace-pre-wrap border-b border-slate-800/50 pb-1">{log}</div>
+             ))}
+          </div>
         )}
       </div>
     </MintCard>
