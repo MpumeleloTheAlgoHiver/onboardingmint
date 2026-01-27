@@ -63,6 +63,16 @@ function parseServices(value) {
   }
   return [];
 }
+function createUserClient(accessToken) {
+  return createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    auth: { persistSession: false },
+    global: {
+      headers: {
+        Authorization: `Bearer ${accessToken}`
+      }
+    }
+  });
+}
 
 export default async function handler(req, res) {
   applyCors(res);
@@ -120,49 +130,36 @@ export default async function handler(req, res) {
     .eq('id', userData.user.id)
     .single();
 
-  if (profileError || !profile) {
-    console.error('[api/banking/initiate] profile lookup failed', {
-      userId: userData.user.id,
-      profileError: profileError?.message || null,
-      supabaseAdmin: !!supabaseAdmin
-    });
+    if (profileError || !profile) {
+      const newProfile = {
+        id: userData.user.id,
+        email: userData.user.email,
+        email_address: userData.user.email,
+        first_name: userData.user.user_metadata?.first_name || userData.user.user_metadata?.firstName || '',
+        last_name: userData.user.user_metadata?.last_name || userData.user.user_metadata?.lastName || '',
+        id_number: userData.user.user_metadata?.id_number || userData.user.user_metadata?.idNumber || '',
+        phone: userData.user.user_metadata?.phone || userData.user.phone || ''
+      };
 
-    if (!supabaseAdmin) {
-      return res.status(404).json({
-        success: false,
-        error: 'Profile not found',
-        details:
-          'Profile lookup failed. Missing SUPABASE_SERVICE_ROLE_KEY or RLS policy may prevent access. Provide SUPABASE_SERVICE_ROLE_KEY on the server to allow read/create, or ensure a profile row exists.'
-      });
+      const insertClient = supabaseAdmin || createUserClient(accessToken);
+      const { data: createdProfile, error: createError } = await insertClient
+        .from('profiles')
+        .insert(newProfile)
+        .select('first_name,last_name,id_number,phone,email,email_address')
+        .single();
+
+      if (createError || !createdProfile) {
+        return res.status(403).json({
+          success: false,
+          error: 'Profile not found',
+          details:
+            createError?.message ||
+            'Profile lookup failed and could not be created. Ensure RLS allows the user to insert into profiles or set SUPABASE_SERVICE_ROLE_KEY on the server.'
+        });
+      }
+
+      profile = createdProfile;
     }
-
-    const newProfile = {
-      id: userData.user.id,
-      email: userData.user.email,
-      email_address: userData.user.email,
-      first_name: userData.user.user_metadata?.first_name || userData.user.user_metadata?.firstName || '',
-      last_name: userData.user.user_metadata?.last_name || userData.user.user_metadata?.lastName || '',
-      id_number: userData.user.user_metadata?.id_number || userData.user.user_metadata?.idNumber || '',
-      phone: userData.user.user_metadata?.phone || userData.user.phone || ''
-    };
-
-    const { data: createdProfile, error: createError } = await supabaseAdmin
-      .from('profiles')
-      .insert(newProfile)
-      .select('first_name,last_name,id_number,phone,email,email_address')
-      .single();
-
-    if (createError || !createdProfile) {
-      console.error('[api/banking/initiate] failed to create profile', { createError: createError?.message });
-      return res.status(500).json({
-        success: false,
-        error: 'Profile not found and could not be created',
-        details: createError?.message
-      });
-    }
-
-    profile = createdProfile;
-  }
 
   const fullName = [profile.first_name, profile.last_name].filter(Boolean).join(' ').trim();
   const idNumber = profile.id_number ? String(profile.id_number).trim() : '';
