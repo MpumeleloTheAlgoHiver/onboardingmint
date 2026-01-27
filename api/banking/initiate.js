@@ -126,7 +126,8 @@ export default async function handler(req, res) {
   const profileClient = supabaseAdmin || supabase;
   let { data: profile, error: profileError } = await profileClient
     .from('profiles')
-    .select('first_name,last_name,id_number,phone,phone_number,email,email_address')
+    // select all columns to avoid failing when optional legacy columns are absent
+    .select('*')
     .eq('id', userData.user.id)
     .single();
 
@@ -144,14 +145,54 @@ export default async function handler(req, res) {
       };
 
       try {
-        const { data: createdProfile, error: createError } = await profileClient
-          .from('profiles')
-          .insert(newProfile)
-          .select('first_name,last_name,id_number,phone,phone_number,email,email_address')
-          .single();
+        // Attempt insert; if Supabase reports missing columns (schema mismatch),
+        // strip the offending column and retry a few times.
+        let insertData = { ...newProfile };
+        let createdProfile = null;
+        let createError = null;
+
+        for (let attempt = 0; attempt < 4; attempt++) {
+          try {
+            const resp = await profileClient
+              .from('profiles')
+              .insert(insertData)
+              .select('*')
+              .single();
+
+            createdProfile = resp.data;
+            createError = resp.error;
+            if (!createError && createdProfile) break;
+          } catch (err) {
+            createError = err;
+          }
+
+          const msg = (createError && (createError.message || String(createError))) || '';
+          // try to detect a missing column name reported by Supabase
+          const m1 = msg.match(/Could not find the '(.+?)' column/);
+          const m2 = msg.match(/column "(.+?)" does not exist/i);
+          const missingCol = (m1 && m1[1]) || (m2 && m2[1]);
+
+          if (missingCol && Object.prototype.hasOwnProperty.call(insertData, missingCol)) {
+            console.warn('[api/banking/initiate] dropping missing profile column and retrying:', missingCol);
+            delete insertData[missingCol];
+            continue;
+          }
+
+          // fallback: remove legacy optional fields if present and retry
+          if (Object.prototype.hasOwnProperty.call(insertData, 'email_address')) {
+            delete insertData.email_address;
+            continue;
+          }
+          if (Object.prototype.hasOwnProperty.call(insertData, 'phone_number')) {
+            delete insertData.phone_number;
+            continue;
+          }
+
+          break;
+        }
 
         if (createError || !createdProfile) {
-          console.error('[api/banking/initiate] failed to create profile', { createError: createError?.message, createdProfile });
+          console.error('[api/banking/initiate] failed to create profile', { createError: createError?.message || createError, createdProfile });
         } else {
           profile = createdProfile;
         }
@@ -162,9 +203,9 @@ export default async function handler(req, res) {
 
   const fullName = [profile.first_name, profile.last_name].filter(Boolean).join(' ').trim();
   const idNumber = profile.id_number ? String(profile.id_number).trim() : '';
-  const email = profile.email || profile.email_address || profile.email || '';
-  // support legacy column `phone_number` if `phone` is absent
-  const mobile = profile.phone || profile.phone_number || '';
+  const email = profile.email || '';
+  // schema uses `phone_number`
+  const mobile = profile.phone_number || '';
 
   if (!fullName || !idNumber) {
     return res.status(400).json({

@@ -62,7 +62,8 @@ export default async function handler(req, res) {
   const profileClient = supabaseAdmin || supabase;
   const { data: profile, error: profileError } = await profileClient
     .from('profiles')
-    .select('id,first_name,last_name,email,email_address,id_number,phone,phone_number')
+    // select columns that exist in your schema
+    .select('id,first_name,last_name,email,id_number,phone_number')
     .eq('id', userData.user.id)
     .maybeSingle();
 
