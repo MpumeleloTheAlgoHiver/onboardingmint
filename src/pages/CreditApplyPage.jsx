@@ -306,17 +306,6 @@ const EnrichmentStage = ({ onSubmit, defaultValues, employerOptions }) => {
                         </select>
                      </label>
                   </div>
-
-                   <label className="block">
-                      <span className="text-xs font-bold text-slate-400 uppercase">Monthly Income</span>
-                      <input 
-                        type="number"
-                        className="w-full mt-1 border-b border-slate-200 bg-transparent py-2 text-sm font-semibold focus:border-slate-900 focus:outline-none transition-colors"
-                        value={formData.grossIncome}
-                        onChange={(e) => handleChange("grossIncome", e.target.value)}
-                        placeholder="R 0.00" 
-                      />
-                  </label>
                </div>
             </div>
          )}
@@ -451,7 +440,8 @@ const CreditApplyWizard = ({ onBack }) => {
     employerCsv,
     lockInputs,
     snapshot,
-    proceedToStep3 // Import this to save progress to DB
+    proceedToStep3, // Import this to save progress to DB
+    loadingProfile
   } = useCreditCheck();
 
   const isCalculating = engineStatus === "Running";
@@ -466,6 +456,7 @@ const CreditApplyWizard = ({ onBack }) => {
   }, [snapshot, setField]);
 
    useEffect(() => {
+      if (loadingProfile) return;
       if (!snapshot || step !== 0) return;
       setAutoAdvance(true);
       const timer = setTimeout(() => {
@@ -473,7 +464,7 @@ const CreditApplyWizard = ({ onBack }) => {
          setAutoAdvance(false);
       }, 900);
       return () => clearTimeout(timer);
-   }, [snapshot, step]);
+   }, [snapshot, step, loadingProfile]);
   
   const handleStart = () => setStep(1);
 
@@ -516,6 +507,22 @@ const CreditApplyWizard = ({ onBack }) => {
    const renderContent = () => {
      switch(step) {
         case 0:
+                  if (loadingProfile) {
+                     return (
+                        <MintCard className="animate-in fade-in zoom-in-95 duration-700">
+                           <div className="flex flex-col items-center gap-4 py-8 text-center">
+                              <div className="h-16 w-16 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center animate-pulse">
+                                 <Search size={28} />
+                              </div>
+                              <div className="space-y-2">
+                                 <h3 className="text-lg font-bold text-slate-900">Checking status...</h3>
+                                 <p className="text-sm text-slate-500">Retrieving your verification profile</p>
+                              </div>
+                           </div>
+                        </MintCard>
+                     );
+                  }
+
                   if (autoAdvance) {
                      return (
                         <MintCard className="animate-in fade-in zoom-in-95 duration-700">
