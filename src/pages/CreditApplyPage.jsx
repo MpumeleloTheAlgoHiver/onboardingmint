@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from "react";
-import { ArrowLeft, ArrowRight, ShieldCheck, Landmark, CheckCircle2, UserPen, Zap, TrendingUp, Search } from "lucide-react";
+import { ArrowLeft, ArrowRight, ShieldCheck, Landmark, CheckCircle2, UserPen, Zap, TrendingUp, Search, ChevronDown, ChevronUp, Briefcase, Info } from "lucide-react";
 import { MintGradientLayout } from "../components/credit/ui/MintGradientLayout";
 import { MintCard } from "../components/credit/ui/MintCard";
 import { MintRadarChart } from "../components/credit/ui/MintRadarChart";
@@ -313,9 +313,28 @@ const EnrichmentStage = ({ onSubmit, defaultValues, employerOptions }) => {
 
       <button 
         onClick={() => onSubmit(formData)}
-        className="w-full py-5 bg-gradient-to-r from-slate-900 to-slate-800 text-white rounded-[20px] font-bold uppercase tracking-widest text-sm shadow-xl shadow-purple-900/20 active:scale-95 hover:-translate-y-1 transition-all flex items-center justify-center gap-3"
+        className="w-full h-[65px] bg-gradient-to-t from-[#D8D9DB] via-white to-[#FDFDFD] rounded-[32px] border border-[#8F9092] font-semibold text-[17px] text-[#1d1d1f] transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer relative group"
+        style={{
+          boxShadow: '0 4px 3px 1px #FCFCFC, 0 6px 8px #D6D7D9, 0 -4px 4px #CECFD1, 0 -6px 4px #FEFEFE, inset 0 0 3px 0 #CECFD1, 0 0 20px rgba(106, 67, 255, 0.15)',
+          textShadow: '0 1px #fff'
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.boxShadow = '0 4px 3px 1px #FCFCFC, 0 6px 8px #D6D7D9, 0 -4px 4px #CECFD1, 0 -6px 4px #FEFEFE, inset 0 0 3px 3px #CECFD1, 0 0 30px rgba(106, 67, 255, 0.3)';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.boxShadow = '0 4px 3px 1px #FCFCFC, 0 6px 8px #D6D7D9, 0 -4px 4px #CECFD1, 0 -6px 4px #FEFEFE, inset 0 0 3px 0 #CECFD1, 0 0 20px rgba(106, 67, 255, 0.15)';
+        }}
+        onMouseDown={(e) => {
+          e.currentTarget.style.boxShadow = '0 4px 3px 1px #FCFCFC, 0 6px 8px #D6D7D9, 0 -4px 4px #CECFD1, 0 -6px 4px #FEFEFE, inset 0 0 5px 3px #999, inset 0 0 30px #aaa';
+        }}
+        onMouseUp={(e) => {
+          e.currentTarget.style.boxShadow = '0 4px 3px 1px #FCFCFC, 0 6px 8px #D6D7D9, 0 -4px 4px #CECFD1, 0 -6px 4px #FEFEFE, inset 0 0 3px 3px #CECFD1, 0 0 30px rgba(106, 67, 255, 0.3)';
+        }}
       >
-        Run Assessment <ArrowRight size={18} />
+        <span className="absolute inset-[-2px] rounded-[34px] bg-gradient-to-br from-purple-500/30 to-purple-700/30 opacity-0 group-hover:opacity-100 transition-opacity duration-300 blur-[8px] -z-10"></span>
+        <span className="transition-transform duration-200 group-hover:scale-[0.975] group-active:scale-95 flex items-center gap-2">
+          Run Assessment <ArrowRight size={18} />
+        </span>
       </button>
     </div>
   );
@@ -411,9 +430,78 @@ const ResultStage = ({ score, isCalculating, breakdown, engineResult }) => {
                                  {showAllData ? "Hide details" : "Reveal details"}
                               </button>
                               {showAllData && (
-                                 <pre className="mt-3 whitespace-pre-wrap rounded-lg bg-slate-900 text-slate-100 text-[10px] p-4 max-h-80 overflow-y-auto">
-                                    {safeResult ? JSON.stringify(safeResult, null, 2) : "No data available."}
-                                 </pre>
+                                 <div className="mt-4 space-y-4 text-xs text-slate-700">
+                                    <div className="grid grid-cols-2 gap-3">
+                                       <div className="rounded-lg border border-slate-100 bg-white p-3">
+                                          <p className="text-[10px] uppercase font-bold text-slate-400">Borrower status</p>
+                                          <p className="text-sm font-semibold text-slate-800">
+                                             {engineResult?.raw?.userData?.algolend_is_new_borrower ? "New borrower" : "Existing borrower"}
+                                          </p>
+                                       </div>
+                                       <div className="rounded-lg border border-slate-100 bg-white p-3">
+                                          <p className="text-[10px] uppercase font-bold text-slate-400">Contract type</p>
+                                          <p className="text-sm font-semibold text-slate-800">
+                                             {engineResult?.breakdown?.contractType?.contractType || "--"}
+                                          </p>
+                                       </div>
+                                    </div>
+
+                                    <div className="rounded-lg border border-slate-100 bg-white p-3">
+                                       <p className="text-[10px] uppercase font-bold text-slate-400 mb-2">Exposure snapshot</p>
+                                       <div className="grid grid-cols-2 gap-3">
+                                          <div>
+                                             <p className="text-[10px] text-slate-400">Revolving utilization</p>
+                                             <p className="font-semibold text-slate-800">
+                                                {Number.isFinite(engineResult?.breakdown?.creditUtilization?.ratioPercent)
+                                                  ? `${engineResult.breakdown.creditUtilization.ratioPercent.toFixed(1)}%`
+                                                  : "--"}
+                                             </p>
+                                          </div>
+                                          <div>
+                                             <p className="text-[10px] text-slate-400">Total balance</p>
+                                             <p className="font-semibold text-slate-800">
+                                                {Number.isFinite(engineResult?.creditExposure?.totalBalance)
+                                                  ? `R ${engineResult.creditExposure.totalBalance.toLocaleString()}`
+                                                  : "--"}
+                                             </p>
+                                          </div>
+                                          <div>
+                                             <p className="text-[10px] text-slate-400">Total limits</p>
+                                             <p className="font-semibold text-slate-800">
+                                                {Number.isFinite(engineResult?.creditExposure?.totalLimits)
+                                                  ? `R ${engineResult.creditExposure.totalLimits.toLocaleString()}`
+                                                  : "--"}
+                                             </p>
+                                          </div>
+                                          <div>
+                                             <p className="text-[10px] text-slate-400">Monthly installments</p>
+                                             <p className="font-semibold text-slate-800">
+                                                {Number.isFinite(engineResult?.creditExposure?.totalMonthlyInstallment)
+                                                  ? `R ${engineResult.creditExposure.totalMonthlyInstallment.toLocaleString()}`
+                                                  : "--"}
+                                             </p>
+                                          </div>
+                                       </div>
+                                    </div>
+
+                                    <div className="rounded-lg border border-slate-100 bg-white p-3">
+                                       <p className="text-[10px] uppercase font-bold text-slate-400 mb-2">Score breakdown</p>
+                                       <div className="space-y-2">
+                                          {Object.entries(engineResult?.breakdown || {}).map(([key, value]) => (
+                                             <div key={key} className="flex items-center justify-between">
+                                                <span className="text-slate-500">
+                                                   {key.replace(/([A-Z])/g, " $1").trim()}
+                                                </span>
+                                                <span className="font-semibold text-slate-800">
+                                                   {Number.isFinite(value?.contributionPercent)
+                                                     ? `${(value.contributionPercent * 100).toFixed(1)}%`
+                                                     : "--"}
+                                                </span>
+                                             </div>
+                                          ))}
+                                       </div>
+                                    </div>
+                                 </div>
                               )}
                            </div>
                         </details>
@@ -429,6 +517,7 @@ const ResultStage = ({ score, isCalculating, breakdown, engineResult }) => {
 const CreditApplyWizard = ({ onBack }) => {
    const [step, setStep] = useState(0); // 0=Intro, 1=Connect, 2=Enrich, 3=Result
    const [autoAdvance, setAutoAdvance] = useState(false);
+   const [showDetails, setShowDetails] = useState(false);
   
   // Real Hook Integration
   const { 
@@ -505,114 +594,169 @@ const CreditApplyWizard = ({ onBack }) => {
 
   // Render Based on Step
    const renderContent = () => {
-     switch(step) {
-        case 0:
-                  if (loadingProfile) {
-                     return (
-                        <MintCard className="animate-in fade-in zoom-in-95 duration-700">
-                           <div className="flex flex-col items-center gap-4 py-8 text-center">
-                              <div className="h-16 w-16 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center animate-pulse">
-                                 <Search size={28} />
-                              </div>
-                              <div className="space-y-2">
-                                 <h3 className="text-lg font-bold text-slate-900">Checking status...</h3>
-                                 <p className="text-sm text-slate-500">Retrieving your verification profile</p>
-                              </div>
-                           </div>
-                        </MintCard>
-                     );
-                  }
+    switch (step) {
+      case 0:
+        if (loadingProfile) {
+          return (
+            <div className="flex min-h-screen items-center justify-center font-sans text-slate-400">
+              Loading Assessment...
+            </div>
+          );
+        }
 
-                  if (autoAdvance) {
-                     return (
-                        <MintCard className="animate-in fade-in zoom-in-95 duration-700">
-                           <div className="flex flex-col items-center gap-4 py-8 text-center">
-                              <div className="h-16 w-16 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center animate-pulse">
-                                 <CheckCircle2 size={28} />
-                              </div>
-                              <div className="space-y-2">
-                                 <h3 className="text-lg font-bold text-slate-900">Bank data already captured</h3>
-                                 <p className="text-sm text-slate-500">Taking you to the review step…</p>
-                              </div>
-                              <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-emerald-600">
-                                 <span className="h-2 w-2 rounded-full bg-emerald-500 animate-ping"></span>
-                                 Auto‑continue
-                              </div>
-                           </div>
-                        </MintCard>
-                     );
-                  }
-            return (
-                <div className="animate-in fade-in slide-in-from-bottom-8 duration-700 space-y-8">
-                  <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-3xl p-6 text-white shadow-xl">
-                     <h2 className="text-xl font-bold mb-2">Welcome to Mint Credit</h2>
-                     <p className="text-white/70 text-sm leading-relaxed">
-                        Sophisticated credit solutions tailored to your financial profile. 
-                        We evaluate your real-time banking behavior, not just your history.
-                     </p>
-                  </div>
-                  
-                  <div className="grid grid-cols-2 gap-4">
-                     {[
-                        { icon: ShieldCheck, label: "Secure" },
-                        { icon: Zap, label: "Instant" },
-                        { icon: TrendingUp, label: "Adaptive" },
-                        { icon: Landmark, label: "FSP Reg." }
-                     ].map((Item, i) => (
-                        <div key={i} className="bg-white p-4 rounded-2xl flex flex-col items-center justify-center gap-2 shadow-sm h-24 hover:-translate-y-1 transition-transform">
-                           <Item.icon className="text-slate-900" size={24} />
-                           <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">{Item.label}</span>
-                        </div>
-                     ))}
-                  </div>
+        if (autoAdvance) {
+          return (
+            <div className="flex flex-col items-center justify-center gap-4 py-8 text-center min-h-[400px]">
+              <div className="h-16 w-16 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center animate-pulse">
+                <CheckCircle2 size={28} />
+              </div>
+              <div className="space-y-2">
+                <h3 className="text-lg font-bold text-slate-900">Bank data already captured</h3>
+                <p className="text-sm text-slate-500">Taking you to the review step…</p>
+              </div>
+              <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-emerald-600">
+                <span className="h-2 w-2 rounded-full bg-emerald-500 animate-ping"></span>
+                Auto‑continue
+              </div>
+            </div>
+          );
+        }
 
-                  <button 
-                     onClick={handleStart}
-                     className="w-full py-5 bg-white text-slate-900 rounded-full font-bold uppercase tracking-widest text-sm shadow-xl shadow-white/10 active:scale-95 transition-all flex items-center justify-center gap-2 hover:bg-slate-50"
-                  >
-                     Initiate Application
-                  </button>
+        return (
+          <div className="animate-in fade-in slide-in-from-bottom-8 duration-700 flex flex-col items-center px-6 pb-10 min-h-screen bg-white">
+            {/* Custom Header for Step 0 (No Gradient) */}
+            <header className="w-full flex items-center justify-start pt-10 pb-6">
+              <button
+                onClick={onBack}
+                className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-slate-700 transition active:scale-95"
+              >
+                <ArrowLeft className="h-5 w-5" />
+              </button>
+            </header>
+
+            {/* Bouncing Coin with Shadow */}
+            <div className="mb-6 relative z-10 mt-4">
+              <div style={{ animation: 'subtleBounce 3s ease-in-out infinite' }}>
+                <img
+                  src="/assets/images/coinAlgoMoney.png"
+                  alt="Mint"
+                  className="h-20 w-20 object-contain drop-shadow-2xl"
+                />
+              </div>
+              <div
+                className="absolute -bottom-4 left-1/2 -translate-x-1/2 w-12 h-1 bg-black/10 blur-md rounded-[100%]"
+                style={{ animation: 'shadowScale 3s ease-in-out infinite' }}
+              ></div>
+              <style>{`
+                @keyframes subtleBounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+                @keyframes shadowScale {
+                  0%, 100% { transform: translateX(-50%) scale(1); opacity: 0.2; }
+                  50% { transform: translateX(-50%) scale(0.8); opacity: 0.1; }
+                }
+              `}</style>
+            </div>
+
+            <h2 className="text-3xl font-light tracking-tight text-center text-slate-900 mb-2 leading-tight">
+               Welcome to  <span className="mint-brand font-bold uppercase mr-1.5">MINT</span><br />Credit
+            </h2>
+            <p className="text-sm text-slate-500 text-center max-w-[280px] mb-8">
+              "Data-driven credit solutions that move with you."
+            </p>
+
+            <div className="w-full space-y-3 mb-6">
+              {[
+                { icon: <Briefcase size={18} />, title: "1. Employment Verification", desc: "Confirming occupational stability." },
+                { icon: <Landmark size={18} />, title: "2. Financial Integration", desc: "Secure data exchange via TruID." },
+                { icon: <Zap size={18} />, title: "3. Proprietary Scoring", desc: "Real-time affordability assessment." }
+              ].map((s, i) => (
+                <div key={i} className="flex items-center gap-4 p-3 rounded-2xl bg-white/60 border border-white/40 shadow-sm backdrop-blur-sm">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-slate-900 shadow-sm shrink-0">
+                    {s.icon}
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-slate-900 text-xs tracking-tight uppercase">{s.title}</h3>
+                    <p className="text-[10px] text-slate-500 leading-tight">{s.desc}</p>
+                  </div>
                 </div>
-            );
-        case 1:
-            return <ConnectionStage onComplete={handleConnectionComplete} onError={() => {}} />;
-        case 2:
-            return <EnrichmentStage 
-                      defaultValues={enrichmentDefaults} 
-                      employerOptions={employerOptions} 
-                      onSubmit={handleEnrichmentSubmit} 
-                   />;
+              ))}
+            </div>
+
+            <button
+              onClick={() => setShowDetails(!showDetails)}
+              className="flex items-center gap-2 text-slate-400 text-[10px] font-bold uppercase tracking-widest hover:text-slate-600 transition mb-2"
+            >
+              <Info size={14} /> How it works {showDetails ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+            </button>
+
+            {showDetails && (
+              <div className="mb-6 p-4 rounded-xl bg-slate-50 border border-slate-100 text-[10px] text-slate-500 leading-relaxed animate-in fade-in zoom-in-95">
+                Our automated credit engine utilizes high-fidelity data from <strong>Experian</strong> and granular cash-flow analysis provided via TruID. 
+                By assessing debt-to-income ratios and historical repayment behavior, we ensure alignment with National Credit Act affordability mandates.
+              </div>
+            )}
+
+            <button
+              onClick={handleStart}
+              className="w-full py-4 bg-slate-900 text-white rounded-full text-sm font-bold uppercase tracking-widest shadow-xl shadow-slate-900/20 active:scale-95 transition-all mt-4"
+            >
+              Initiate Application
+            </button>
+
+            <footer className="mt-8 text-center opacity-40">
+              <p className="text-[8px] uppercase tracking-tighter text-slate-500 max-w-[340px] mx-auto leading-relaxed">
+                <span className="mint-brand">MINT</span> (Pty) Ltd is an authorised Financial Services Provider (FSP 55118) and a 
+                Registered Credit Provider (NCRCP22892). <span className="mint-brand">MINT</span> Reg no: 2024/644796/07
+              </p>
+            </footer>
+          </div>
+        );
+
+      case 1:
+        return <ConnectionStage onComplete={handleConnectionComplete} onError={() => {}} />;
+      case 2:
+        return (
+          <EnrichmentStage
+            defaultValues={enrichmentDefaults}
+            employerOptions={employerOptions}
+            onSubmit={handleEnrichmentSubmit}
+          />
+        );
       case 3:
-         return <ResultStage 
-                 score={score} 
-                 isCalculating={isCalculating} 
-                 breakdown={engineResult?.breakdown} 
-                 engineResult={engineResult}
-               />;
-        default:
-            return null;
-     }
+        return (
+          <ResultStage
+            score={score}
+            isCalculating={isCalculating}
+            breakdown={engineResult?.breakdown}
+            engineResult={engineResult}
+          />
+        );
+      default:
+        return null;
+    }
   };
 
   const getTitle = () => {
-     if (step === 0) return "Credit Application";
-     if (step === 1) return "Link Accounts";
-     if (step === 2) return "Confirm Details";
-     if (step === 3) return "Assessment Result";
-     return "";
+    if (step === 1) return "Link Accounts";
+    if (step === 2) return "Confirm Details";
+    if (step === 3) return "Assessment Result";
+    return "";
   };
-  
+
   const getStepInfo = () => {
-    if (step === 0) return "Start";
     return `${step} / 3`;
   };
 
+  // Final Component Render
+  if (step === 0) {
+    return renderContent();
+  }
+
   return (
-    <MintGradientLayout 
-        title={getTitle()} 
-        subtitle={step === 1 ? "We need to verify your income via your primary bank account." : step === 2 ? "Review the details we found." : ""}
-        stepInfo={getStepInfo()}
-        onBack={step === 0 ? onBack : () => setStep(s => s - 1)}
+    <MintGradientLayout
+      title={getTitle()}
+      subtitle={step === 1 ? "We need to verify your income via your primary bank account." : step === 2 ? "Review the details we found." : ""}
+      stepInfo={getStepInfo()}
+      onBack={() => setStep((s) => s - 1)}
     >
       {renderContent()}
     </MintGradientLayout>
