@@ -174,7 +174,7 @@ const ConnectionStage = ({ onComplete, onError }) => {
         {status !== 'polling' && status !== 'capturing' && status !== 'success' && (
            <button 
              onClick={startSession}
-             className="w-full py-4 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold uppercase tracking-widest text-sm shadow-lg shadow-slate-900/10 active:scale-95 transition-all flex items-center justify-center gap-2"
+             className="w-full py-4 rounded-full bg-white/80 text-slate-800 border border-white/70 font-semibold text-sm shadow-sm shadow-black/5 hover:bg-white hover:text-slate-900 active:scale-95 transition-all flex items-center justify-center gap-2"
            >
               <ShieldCheck size={18} /> Connect Bank
            </button>
@@ -200,15 +200,6 @@ const ConnectionStage = ({ onComplete, onError }) => {
            </div>
         )}
 
-        {/* Debug Log View */}
-        {debugLog.length > 0 && (
-          <div className="w-full mt-6 bg-slate-900 rounded-lg p-4 font-mono text-[10px] text-slate-300 overflow-x-auto max-h-48 overflow-y-auto border border-slate-700 shadow-inner">
-             <p className="font-bold text-slate-500 mb-2 uppercase sticky top-0 bg-slate-900 pb-2 border-b border-slate-700">Debug Console</p>
-             {debugLog.map((log, i) => (
-               <div key={i} className="mb-1 whitespace-pre-wrap border-b border-slate-800/50 pb-1">{log}</div>
-             ))}
-          </div>
-        )}
       </div>
     </MintCard>
   );
@@ -343,44 +334,104 @@ const EnrichmentStage = ({ onSubmit, defaultValues, employerOptions }) => {
 
 
 // Stage 3: Results
-const ResultStage = ({ score, isCalculating, breakdown }) => {
-    
-    // Map breakdown or default fake data
-    const categories = breakdown ? Object.entries(breakdown).map(([k, v]) => ({
-        label: k.replace(/([A-Z])/g, " $1").trim(),
-        value: Math.min(100, (v?.contributionPercent || 0) * 100),
-        weight: '25%'
-    })) : [
-        { label: 'Affordability', value: 85 },
-        { label: 'Stability', value: 90 },
-        { label: 'Credit', value: 75 },
-        { label: 'Behavior', value: 65 }
-    ];
+const ResultStage = ({ score, isCalculating, breakdown, engineResult }) => {
+      const [showAllData, setShowAllData] = useState(false);
 
-    return (
-        <MintCard className="animate-in zoom-in-95 duration-500 min-h-[400px]">
-            <MintRadarChart 
-                score={score} 
-                categories={categories} 
-                isCalculating={isCalculating}
-            />
-            
-            {!isCalculating && score > 0 && (
-                <div className="pt-8 border-t border-slate-50 mt-8">
-                     <div className="grid grid-cols-2 gap-4">
-                        <div className="bg-slate-50 p-3 rounded-xl text-center">
-                            <p className="text-[10px] uppercase font-bold text-slate-400 mb-1">Max Amount</p>
-                            <p className="text-lg font-black text-slate-800">R {Math.min(15000, score * 150).toLocaleString()}</p>
+      const sanitizeData = (value) => {
+         if (Array.isArray(value)) return value.map(sanitizeData);
+         if (value && typeof value === "object") {
+            return Object.entries(value).reduce((acc, [key, val]) => {
+               const blockedKeys = new Set([
+                  "gross_monthly_income",
+                  "net_monthly_income",
+                  "avg_monthly_income",
+                  "avg_monthly_expenses",
+                  "monthly_income",
+                  "monthlyIncome",
+                  "monthly_expenses",
+                  "monthlyExpenses"
+               ]);
+               if (blockedKeys.has(key)) return acc;
+               acc[key] = sanitizeData(val);
+               return acc;
+            }, {});
+         }
+         return value;
+      };
+
+      const safeResult = engineResult ? sanitizeData(engineResult) : null;
+      const scoreReasons = engineResult?.scoreReasons || [];
+      const tenureMonths = engineResult?.breakdown?.employmentTenure?.monthsInCurrentJob;
+
+      // Map breakdown or default fake data
+      const categories = breakdown ? Object.entries(breakdown).map(([k, v]) => ({
+            label: k.replace(/([A-Z])/g, " $1").trim(),
+            value: Math.min(100, (v?.contributionPercent || 0) * 100),
+            weight: '25%'
+      })) : [
+            { label: 'Affordability', value: 85 },
+            { label: 'Stability', value: 90 },
+            { label: 'Credit', value: 75 },
+            { label: 'Behavior', value: 65 }
+      ];
+
+      return (
+            <MintCard className="animate-in zoom-in-95 duration-500 min-h-[400px]">
+                  <MintRadarChart 
+                        score={score} 
+                        categories={categories} 
+                        isCalculating={isCalculating}
+                  />
+
+                  {!isCalculating && score > 0 && (
+                     <div className="pt-8 border-t border-slate-50 mt-8 space-y-4">
+                        <div className="grid grid-cols-2 gap-4">
+                           <div className="bg-slate-50 p-3 rounded-xl text-center">
+                              <p className="text-[10px] uppercase font-bold text-slate-400 mb-1">Credit Score</p>
+                              <p className="text-lg font-black text-slate-800">{engineResult?.creditScore ?? "--"}</p>
+                           </div>
+                           <div className="bg-slate-50 p-3 rounded-xl text-center">
+                              <p className="text-[10px] uppercase font-bold text-slate-400 mb-1">Tenure</p>
+                              <p className="text-lg font-black text-slate-800">{Number.isFinite(tenureMonths) ? `${tenureMonths} months` : "--"}</p>
+                           </div>
                         </div>
-                         <div className="bg-slate-50 p-3 rounded-xl text-center">
-                            <p className="text-[10px] uppercase font-bold text-slate-400 mb-1">Interest</p>
-                            <p className="text-lg font-black text-slate-800">{score > 80 ? '12.5%' : score > 60 ? '18.5%' : '24.5%'}</p>
-                        </div>
+
+                        <details className="group rounded-xl border border-slate-100 bg-white/80 p-4">
+                           <summary className="cursor-pointer text-xs font-bold uppercase tracking-widest text-slate-500">Show Experian reasons</summary>
+                           <div className="mt-3 space-y-2 text-sm text-slate-700">
+                              {scoreReasons.length ? (
+                                 <ul className="list-disc pl-5 space-y-1">
+                                    {scoreReasons.map((reason, idx) => (
+                                       <li key={idx}>{reason}</li>
+                                    ))}
+                                 </ul>
+                              ) : (
+                                 <p className="text-slate-500">No reasons returned.</p>
+                              )}
+                           </div>
+                        </details>
+
+                        <details className="group rounded-xl border border-slate-100 bg-white/80 p-4">
+                           <summary className="cursor-pointer text-xs font-bold uppercase tracking-widest text-slate-500">Show all data</summary>
+                           <div className="mt-3">
+                              <button
+                                 type="button"
+                                 onClick={() => setShowAllData((prev) => !prev)}
+                                 className="text-xs font-semibold text-slate-500 hover:text-slate-900"
+                              >
+                                 {showAllData ? "Hide details" : "Reveal details"}
+                              </button>
+                              {showAllData && (
+                                 <pre className="mt-3 whitespace-pre-wrap rounded-lg bg-slate-900 text-slate-100 text-[10px] p-4 max-h-80 overflow-y-auto">
+                                    {safeResult ? JSON.stringify(safeResult, null, 2) : "No data available."}
+                                 </pre>
+                              )}
+                           </div>
+                        </details>
                      </div>
-                </div>
-            )}
-        </MintCard>
-    );
+                  )}
+            </MintCard>
+      );
 };
 
 
@@ -494,12 +545,13 @@ const CreditApplyWizard = ({ onBack }) => {
                       employerOptions={employerOptions} 
                       onSubmit={handleEnrichmentSubmit} 
                    />;
-        case 3:
-            return <ResultStage 
-                      score={score} 
-                      isCalculating={isCalculating} 
-                      breakdown={engineResult?.breakdown} 
-                   />;
+      case 3:
+         return <ResultStage 
+                 score={score} 
+                 isCalculating={isCalculating} 
+                 breakdown={engineResult?.breakdown} 
+                 engineResult={engineResult}
+               />;
         default:
             return null;
      }
