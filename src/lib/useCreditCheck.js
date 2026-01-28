@@ -228,6 +228,7 @@ export function useCreditCheck() {
     const annualExpenses = normalizeNumber(form.annualExpenses);
 
     const payload = {
+      loanApplicationId: loanRecord?.id || undefined,
       userData: {
         identity_number: form.identityNumber,
         surname: form.lastName,
@@ -260,7 +261,7 @@ export function useCreditCheck() {
     const result = await response.json();
     setEngineResult(result);
     setEngineStatus(result?.success === false || result?.ok === false ? "Failed" : "Complete");
-  }, [apiBase, form, normalizedContractType]);
+  }, [apiBase, form, normalizedContractType, loanRecord]);
 
   const proceedToStep3 = useCallback(async () => {
     if (!loanRecord?.id) return;

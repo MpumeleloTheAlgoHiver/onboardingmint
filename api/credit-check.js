@@ -112,7 +112,8 @@ export default async function handler(req, res) {
 
   if (!userId) userId = 'anon-dev';
 
-  const applicationId = body.applicationId || `app_${Date.now()}`;
+  let loanApplicationId = body.loanApplicationId || body.loan_application_id || null;
+  const applicationId = body.applicationId || loanApplicationId || `app_${Date.now()}`;
   const overrides = body.userData || body;
   const normalizedOverrides = {
     ...overrides,
@@ -140,6 +141,31 @@ export default async function handler(req, res) {
 
   const userPayload = buildUserData(normalizedOverrides);
   userPayload.user_id = overrides?.user_id || userId;
+
+  if (!loanApplicationId && supabase && userId && userId !== 'anon-dev') {
+    try {
+      const dbClient = accessToken
+        ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+            global: { headers: { Authorization: `Bearer ${accessToken}` } }
+          })
+        : supabase;
+
+      const { data: loanApp } = await dbClient
+        .from('loan_application')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('status', 'in_progress')
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (loanApp?.id) {
+        loanApplicationId = loanApp.id;
+      }
+    } catch (lookupError) {
+      console.warn('Loan application lookup failed:', lookupError?.message || lookupError);
+    }
+  }
 
   if (!userPayload.identity_number || !userPayload.surname || !userPayload.forename) {
     return res.status(400).json({ error: 'Missing required identity fields', required: ['identity_number', 'surname', 'forename'] });
@@ -228,6 +254,68 @@ export default async function handler(req, res) {
 
     const success = result?.success === true;
     const ok = success;
+
+    if (supabase && userId && userId !== 'anon-dev') {
+      try {
+        const dbClient = accessToken
+          ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+              global: { headers: { Authorization: `Bearer ${accessToken}` } }
+            })
+          : supabase;
+
+        const loanEngineInsert = {
+          user_id: userId,
+          loan_application_id: loanApplicationId,
+          engine_score: Number.isFinite(loanEngineScoreNormalized)
+            ? Math.round(loanEngineScoreNormalized)
+            : null,
+          score_band: creditScoreData?.riskType || 'UNKNOWN',
+          experian_score: Number.isFinite(creditScoreValue) ? creditScoreValue : null,
+          experian_weight: creditScoreBreakdown?.weightPercent ?? null,
+          engine_total_contribution: Number.isFinite(loanEngineScore) ? loanEngineScore : null,
+          annual_income: Number.isFinite(Number(normalizedOverrides?.annual_income))
+            ? Number(normalizedOverrides.annual_income)
+            : null,
+          annual_expenses: Number.isFinite(Number(normalizedOverrides?.annual_expenses))
+            ? Number(normalizedOverrides.annual_expenses)
+            : null,
+          years_current_employer: Number.isFinite(Number(normalizedOverrides?.years_in_current_job))
+            ? Number(normalizedOverrides.years_in_current_job)
+            : null,
+          contract_type: normalizedOverrides?.contract_type || null,
+          is_new_borrower: Boolean(normalizedOverrides?.algolend_is_new_borrower),
+          employment_sector: normalizedOverrides?.employment_sector_type || null,
+          employer_name: normalizedOverrides?.employment_employer_name || null,
+          exposure_revolving_utilization: creditUtilizationBreakdown?.ratioPercent ?? null,
+          exposure_revolving_balance: Number.isFinite(accountMetrics.revolvingBalance)
+            ? accountMetrics.revolvingBalance
+            : null,
+          exposure_revolving_limit: Number.isFinite(accountMetrics.revolvingLimits)
+            ? accountMetrics.revolvingLimits
+            : null,
+          exposure_total_balance: Number.isFinite(accountMetrics.totalBalance)
+            ? accountMetrics.totalBalance
+            : null,
+          exposure_total_limit: Number.isFinite(accountMetrics.totalLimits)
+            ? accountMetrics.totalLimits
+            : null,
+          exposure_open_accounts: Number.isFinite(accountMetrics.openAccounts)
+            ? accountMetrics.openAccounts
+            : null,
+          score_reasons: scoreReasons
+        };
+
+        const { error: insertError } = await dbClient
+          .from('loan_engine_score')
+          .insert(loanEngineInsert);
+
+        if (insertError) {
+          console.warn('Loan engine score insert failed:', insertError.message || insertError);
+        }
+      } catch (dbError) {
+        console.warn('Loan engine score insert exception:', dbError?.message || dbError);
+      }
+    }
 
     return res.status(200).json({
       success,
