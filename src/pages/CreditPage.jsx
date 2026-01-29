@@ -117,7 +117,6 @@ const CreditPage = ({ onOpenNotifications, onOpenTruID, onOpenCreditStep2 }) => 
     window.history.pushState({}, "", path);
     setView(viewName);
   };
-  };
 
   if (view === "score") {
     return <CreditScorePage onBack={() => navigate("overview")} />;
