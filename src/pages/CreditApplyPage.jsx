@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from "react";
-import { ArrowLeft, ArrowRight, ShieldCheck, Landmark, CheckCircle2, UserPen, Zap, TrendingUp, Search } from "lucide-react";
+import { ArrowLeft, ArrowRight, ShieldCheck, Landmark, CheckCircle2, UserPen, Zap, TrendingUp, Search, ChevronDown, ChevronUp, Briefcase, Info } from "lucide-react";
 import { MintGradientLayout } from "../components/credit/ui/MintGradientLayout";
 import { MintCard } from "../components/credit/ui/MintCard";
 import { MintRadarChart } from "../components/credit/ui/MintRadarChart";
@@ -653,6 +653,7 @@ const CreditApplyWizard = ({ onBack, onComplete }) => {
    const [checkedExistingScore, setCheckedExistingScore] = useState(false);
    const [loanApplications, setLoanApplications] = useState([]);
    const [loadingLoans, setLoadingLoans] = useState(true);
+   const [showDetails, setShowDetails] = useState(false);
   
   // Real Hook Integration
   const { 
@@ -891,86 +892,92 @@ const CreditApplyWizard = ({ onBack, onComplete }) => {
                         </MintCard>
                      );
                   }
-            return (
-                <div className="animate-in fade-in slide-in-from-bottom-8 duration-700 space-y-8">
-                  <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-3xl p-6 text-slate-900 shadow-xl">
-                     <h2 className="text-xl font-bold mb-2">Welcome to Mint Credit</h2>
-                     <p className="text-slate-700 text-sm leading-relaxed">
-                        Sophisticated credit solutions tailored to your financial profile. 
-                        We evaluate your real-time banking behavior, not just your history.
-                     </p>
-                  </div>
+                  return (
+                     <div className="animate-in fade-in slide-in-from-bottom-8 duration-700 flex flex-col items-center px-6 pb-10 min-h-screen bg-white">
+                        <header className="w-full flex items-center justify-start pt-10 pb-6">
+                           <button
+                              onClick={onBack}
+                              className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-slate-700 transition active:scale-95"
+                           >
+                              <ArrowLeft className="h-5 w-5" />
+                           </button>
+                        </header>
 
-                  {!loadingLoans && loanApplications.length > 0 && (
-                     <div className="space-y-3">
-                        <p className="text-xs font-semibold uppercase tracking-widest text-slate-500">
-                           Your loan applications
+                        <div className="mb-6 relative z-10 mt-4">
+                           <div style={{ animation: "subtleBounce 3s ease-in-out infinite" }}>
+                              <img
+                                 src="/assets/images/coinAlgoMoney.png"
+                                 alt="Mint"
+                                 className="h-20 w-20 object-contain drop-shadow-2xl"
+                              />
+                           </div>
+                           <div
+                              className="absolute -bottom-4 left-1/2 -translate-x-1/2 w-12 h-1 bg-black/10 blur-md rounded-[100%]"
+                              style={{ animation: "shadowScale 3s ease-in-out infinite" }}
+                           ></div>
+                           <style>{`
+                              @keyframes subtleBounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+                              @keyframes shadowScale {
+                                 0%, 100% { transform: translateX(-50%) scale(1); opacity: 0.2; }
+                                 50% { transform: translateX(-50%) scale(0.8); opacity: 0.1; }
+                              }
+                           `}</style>
+                        </div>
+
+                        <h2 className="text-3xl font-light tracking-tight text-center text-slate-900 mb-2 leading-tight">
+                           Welcome to <span className="mint-brand font-bold uppercase mr-1.5">MINT</span><br />Credit
+                        </h2>
+                        <p className="text-sm text-slate-500 text-center max-w-[280px] mb-8">
+                           "Data-driven credit solutions that move with you."
                         </p>
-                        <div className="flex gap-4 overflow-x-auto pb-2 snap-x snap-mandatory">
-                           {loanApplications.map((loan) => (
-                              <div key={loan.id} className="min-w-[85%] snap-center">
-                                 <div className="rounded-3xl border border-white/20 bg-white/10 p-5 text-slate-900 shadow-xl">
-                                    <div className="flex items-center justify-between">
-                                       <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Application</p>
-                                       <span className="rounded-full bg-white/20 px-3 py-1 text-[10px] font-semibold uppercase tracking-widest text-slate-700">
-                                          {loan.status || "in_progress"}
-                                       </span>
-                                    </div>
-                                    <div className="mt-4 grid grid-cols-2 gap-4 text-sm">
-                                       <div>
-                                          <p className="text-[10px] uppercase tracking-widest text-slate-500">Principal</p>
-                                          <p className="mt-1 text-lg font-semibold">{formatAmount(loan.principal_amount)}</p>
-                                       </div>
-                                       <div>
-                                          <p className="text-[10px] uppercase tracking-widest text-slate-500">Repayable</p>
-                                          <p className="mt-1 text-lg font-semibold">{formatAmount(loan.amount_repayable)}</p>
-                                       </div>
-                                       <div>
-                                          <p className="text-[10px] uppercase tracking-widest text-slate-500">First payment</p>
-                                          <p className="mt-1 text-sm font-semibold">
-                                             {loan.first_repayment_date
-                                                ? new Date(loan.first_repayment_date).toLocaleDateString("en-GB", {
-                                                     day: "2-digit",
-                                                     month: "short",
-                                                     year: "numeric"
-                                                  })
-                                                : "—"}
-                                          </p>
-                                       </div>
-                                       <div>
-                                          <p className="text-[10px] uppercase tracking-widest text-slate-500">Months</p>
-                                          <p className="mt-1 text-sm font-semibold">{loan.number_of_months || "—"}</p>
-                                       </div>
-                                    </div>
+
+                        <div className="w-full space-y-3 mb-6">
+                           {[
+                              { icon: <Briefcase size={18} />, title: "1. Employment Verification", desc: "Confirming occupational stability." },
+                              { icon: <Landmark size={18} />, title: "2. Financial Integration", desc: "Secure data exchange via TruID." },
+                              { icon: <Zap size={18} />, title: "3. Proprietary Scoring", desc: "Real-time affordability assessment." }
+                           ].map((s, i) => (
+                              <div key={i} className="flex items-center gap-4 p-3 rounded-2xl bg-white/60 border border-white/40 shadow-sm backdrop-blur-sm">
+                                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-slate-900 shadow-sm shrink-0">
+                                    {s.icon}
+                                 </div>
+                                 <div>
+                                    <h3 className="font-bold text-slate-900 text-xs tracking-tight uppercase">{s.title}</h3>
+                                    <p className="text-[10px] text-slate-500 leading-tight">{s.desc}</p>
                                  </div>
                               </div>
                            ))}
                         </div>
-                     </div>
-                  )}
-                  
-                  <div className="grid grid-cols-2 gap-4">
-                     {[
-                        { icon: ShieldCheck, label: "Secure" },
-                        { icon: Zap, label: "Instant" },
-                        { icon: TrendingUp, label: "Adaptive" },
-                        { icon: Landmark, label: "FSP Reg." }
-                     ].map((Item, i) => (
-                        <div key={i} className="bg-white p-4 rounded-2xl flex flex-col items-center justify-center gap-2 shadow-sm h-24 hover:-translate-y-1 transition-transform">
-                           <Item.icon className="text-slate-900" size={24} />
-                           <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">{Item.label}</span>
-                        </div>
-                     ))}
-                  </div>
 
-                  <button 
-                     onClick={handleStart}
-                     className="w-full py-5 bg-white text-slate-900 rounded-full font-bold uppercase tracking-widest text-sm shadow-xl shadow-white/10 active:scale-95 transition-all flex items-center justify-center gap-2 hover:bg-slate-50"
-                  >
-                     Initiate Application
-                  </button>
-                </div>
-            );
+                        <button
+                           onClick={() => setShowDetails(!showDetails)}
+                           className="flex items-center gap-2 text-slate-400 text-[10px] font-bold uppercase tracking-widest hover:text-slate-600 transition mb-2"
+                        >
+                           <Info size={14} /> How it works {showDetails ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                        </button>
+
+                        {showDetails && (
+                           <div className="mb-6 p-4 rounded-xl bg-slate-50 border border-slate-100 text-[10px] text-slate-500 leading-relaxed animate-in fade-in zoom-in-95">
+                              Our automated credit engine utilizes high-fidelity data from <strong>Experian</strong> and granular cash-flow analysis provided via TruID.
+                              By assessing debt-to-income ratios and historical repayment behavior, we ensure alignment with National Credit Act affordability mandates.
+                           </div>
+                        )}
+
+                        <button
+                           onClick={handleStart}
+                           className="w-full py-4 bg-slate-900 text-white rounded-full text-sm font-bold uppercase tracking-widest shadow-xl shadow-slate-900/20 active:scale-95 transition-all mt-4"
+                        >
+                           Initiate Application
+                        </button>
+
+                        <footer className="mt-8 text-center opacity-40">
+                           <p className="text-[8px] uppercase tracking-tighter text-slate-500 max-w-[340px] mx-auto leading-relaxed">
+                              <span className="mint-brand">MINT</span> (Pty) Ltd is an authorised Financial Services Provider (FSP 55118) and a
+                              Registered Credit Provider (NCRCP22892). <span className="mint-brand">MINT</span> Reg no: 2024/644796/07
+                           </p>
+                        </footer>
+                     </div>
+                  );
         case 1:
             return <ConnectionStage onComplete={handleConnectionComplete} onError={() => {}} />;
          case 2:
@@ -1010,16 +1017,20 @@ const CreditApplyWizard = ({ onBack, onComplete }) => {
     return `${step} / 3`;
   };
 
-  return (
-    <MintGradientLayout 
-        title={getTitle()} 
-        subtitle={step === 1 ? "We need to verify your income via your primary bank account." : step === 2 ? "Review the details we found." : ""}
-        stepInfo={getStepInfo()}
-        onBack={step === 0 ? onBack : () => setStep(s => s - 1)}
-    >
-      {renderContent()}
-    </MintGradientLayout>
-  );
+   if (step === 0) {
+      return renderContent();
+   }
+
+   return (
+      <MintGradientLayout 
+            title={getTitle()} 
+            subtitle={step === 1 ? "We need to verify your income via your primary bank account." : step === 2 ? "Review the details we found." : ""}
+            stepInfo={getStepInfo()}
+            onBack={() => setStep(s => s - 1)}
+      >
+         {renderContent()}
+      </MintGradientLayout>
+   );
 };
 
 export default CreditApplyWizard;
