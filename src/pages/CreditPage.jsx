@@ -282,14 +282,6 @@ const CreditPage = ({ onOpenNotifications, onOpenTruID, onOpenCreditStep2 }) => 
                   onClick: () => onOpenTruID ? onOpenTruID() : console.log("Apply for credit"),
                 },
                 {
-                  label: "Upload bank statements",
-                  onClick: () => onOpenCreditStep2 ? onOpenCreditStep2() : console.log("Upload bank statements"),
-                },
-                {
-                  label: "Verify identity",
-                  onClick: () => console.log("Verify identity"),
-                },
-                {
                   label: "Pay loan",
                   onClick: () => console.log("Pay loan"),
                 },
