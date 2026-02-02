@@ -5,8 +5,8 @@ import AuthPage from "./pages/AuthPage.jsx";
 import HomePage from "./pages/HomePage.jsx";
 import CreditPage from "./pages/CreditPage.jsx";
 import CreditApplyPage from "./pages/CreditApplyPage.jsx";
-import LoanConfigurationPage from "./pages/LoanConfigurationPage.jsx";
 import CreditRepayPage from "./pages/CreditRepayPage.jsx";
+import LoanConfigurationPage from "./pages/LoanConfigurationPage.jsx";
 import InvestmentsPage from "./pages/InvestmentsPage.jsx";
 import InvestPage from "./pages/InvestPage.jsx";
 import InvestAmountPage from "./pages/InvestAmountPage.jsx";
@@ -254,31 +254,35 @@ const App = () => {
         onCloseModal={closeModal}
       >
         <CreditPage
-            onOpenNotifications={() => {
-              setNotificationReturnPage("credit");
-              setCurrentPage("notifications");
-            }}
-            onOpenTruID={() => setCurrentPage("creditApply")}
-          />
+          onOpenNotifications={() => {
+            setNotificationReturnPage("credit");
+            setCurrentPage("notifications");
+          }}
+          onOpenTruID={() => setCurrentPage("creditApply")}
+        />
       </AppLayout>
     );
   }
-
-  if (currentPage === "creditApply") {
+  
+  if (currentPage === "creditScore") {
     return (
-      <CreditApplyPage
-        onBack={() => setCurrentPage("credit")}
-        onComplete={() => setCurrentPage("loanConfig")}
-      />
-    );
-  }
-
-  if (currentPage === "loanConfig") {
-    return (
-      <LoanConfigurationPage
-        onBack={() => setCurrentPage("creditApply")}
-        onComplete={() => setCurrentPage("credit")}
-      />
+      <AppLayout
+        activeTab="credit"
+        onTabChange={setCurrentPage}
+        onWithdraw={handleWithdrawRequest}
+        onShowComingSoon={handleShowComingSoon}
+        modal={modal}
+        onCloseModal={closeModal}
+      >
+        <CreditPage
+          initialView="score"
+          onOpenNotifications={() => {
+            setNotificationReturnPage("credit");
+            setCurrentPage("notifications");
+          }}
+          onOpenCreditApply={() => setCurrentPage("creditApply")}
+        />
+      </AppLayout>
     );
   }
 
@@ -608,6 +612,24 @@ const App = () => {
 
   if (currentPage === "invite") {
     return <InvitePage onBack={() => setCurrentPage("actions")} />;
+  }
+
+  if (currentPage === "creditApply") {
+    return (
+      <CreditApplyPage
+        onBack={() => setCurrentPage("credit")}
+        onComplete={() => setCurrentPage("loanConfig")}
+      />
+    );
+  }
+
+  if (currentPage === "loanConfig") {
+    return (
+      <LoanConfigurationPage
+        onBack={() => setCurrentPage("creditApply")}
+        onComplete={() => setCurrentPage("credit")}
+      />
+    );
   }
 
   if (currentPage === "creditRepay") {
